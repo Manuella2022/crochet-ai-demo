@@ -313,7 +313,7 @@
                 }
                 
                 const data = await response.json();
-                // Check for fallback/error responses
+                // Check for fallback/error responses (Updated with guardrails )
 if (data.response && data.response.includes("I'm having trouble answering that")) {
     addMessageToChat('model', data.response, '⚠️ Fallback response - system had trouble processing your request');
     conversationHistory.push({role: 'model', content: data.response});
