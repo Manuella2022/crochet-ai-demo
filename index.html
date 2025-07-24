@@ -106,7 +106,10 @@
             border-left: 4px solid #f44336;
             color: #c62828;
         }
-        
+        .fallback-message {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+        }
         .loading {
             opacity: 0.6;
         }
@@ -215,6 +218,9 @@
             if (role === 'system') {
                 className = 'message ai-message';
             }
+            if (content.includes("I'm having trouble answering that")) {
+                className += ' fallback-message';
+            }
             messageDiv.className = className;
             
             const icon = role === 'user' ? '👤' : role === 'system' ? '⚙️' : '🤖';
@@ -283,7 +289,7 @@
                     message: message,
                     user_id: userId,
                     project_id: projectId,
-                    response_type: responseType,  // ✅ NEW: Include response type
+                    response_type: responseType, 
                     crochet_mode: true,
                     temperature: temperature,
                     max_output_tokens: 800,
@@ -307,9 +313,25 @@
                 }
                 
                 const data = await response.json();
+                // Check for fallback/error responses
+if (data.response && data.response.includes("I'm having trouble answering that")) {
+    addMessageToChat('model', data.response, '⚠️ Fallback response - system had trouble processing your request');
+    conversationHistory.push({role: 'model', content: data.response});
+    return; // Exit early, don't try to parse components
+}
+
+// Check for empty or null responses
+if (!data.response || data.response.trim() === '') {
+    const fallbackMsg = "I'm having trouble answering that. Try rewording your question or asking about a specific stitch or Design Crochet Code.";
+    addMessageToChat('model', fallbackMsg, '⚠️ Empty response received from server');
+    conversationHistory.push({role: 'model', content: fallbackMsg});
+    return;
+}
                 console.log('Response received:', data);
+
                 
-                // Add AI response to chat
+                
+                
                 const metadata = data.metadata ? [
                     `Conversation length: ${data.metadata.conversation_length ?? 'N/A'}`,
                     `Project context: ${data.metadata.project_context_included ? 'Yes' : 'No'}`,
