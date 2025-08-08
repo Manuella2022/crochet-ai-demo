@@ -113,12 +113,31 @@
         .loading {
             opacity: 0.6;
         }
+        
+        .security-notice {
+            background-color: #e8f5e8;
+            border: 1px solid #4caf50;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .security-notice h3 {
+            margin-top: 0;
+            color: #2e7d32;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>🧶 Crochet AI Chat Test</h1>
         <p>Test persistent chat with conversation history and project context.</p>
+        
+        <div class="security-notice">
+            <h3>🔒 Security Enabled</h3>
+            <p><strong>API is now protected with authentication.</strong> This demo includes the required API key automatically.</p>
+            <p><strong>API Key:</strong> <code>491db51f-9798-4fde-88c2-78732d7cd587</code></p>
+        </div>
         
         <div class="config-section">
             <div>
@@ -144,12 +163,16 @@
                 <label for="apiUrl">API URL:</label>
                 <input type="text" id="apiUrl" value="https://vertex-ai-request-nmyzhgdplq-uc.a.run.app" placeholder="Your Firebase Function URL" style="grid-column: span 2;">
             </div>
+            <div style="grid-column: span 2;">
+                <label for="apiKey">API Key:</label>
+                <input type="text" id="apiKey" value="491db51f-9798-4fde-88c2-78732d7cd587" placeholder="Your API Key" style="width: 100%; font-family: monospace;">
+            </div>
         </div>
         
         <div class="chat-area" id="chatArea">
             <div class="message ai-message">
                 <strong>🤖 Crochet AI:</strong> Hello! I'm ready to help you with crochet patterns. I'll remember our conversation and any project context. Try asking me to start a pattern!
-                <div class="metadata">Ready for conversation with history support</div>
+                <div class="metadata">Ready for conversation with history support • Security: API Key authentication enabled</div>
             </div>
         </div>
         
@@ -251,6 +274,7 @@
             const projectId = document.getElementById('projectId').value.trim();
             const responseType = document.getElementById('responseType').value;
             const apiUrl = document.getElementById('apiUrl').value.trim();
+            const apiKey = document.getElementById('apiKey').value.trim();  // ← GET API KEY
             const temperature = parseFloat(document.getElementById('temperature').value);
             
             const message = messageInput.value.trim();
@@ -268,6 +292,11 @@
             
             if (!apiUrl || !apiUrl.startsWith('http')) {
                 alert('Please enter a valid API URL');
+                return;
+            }
+            
+            if (!apiKey) {
+                alert('Please enter a valid API Key');
                 return;
             }
             
@@ -297,43 +326,49 @@
                 };
                 
                 console.log('Sending request:', requestBody);
+                console.log('Using API Key:', apiKey);
                 
-                // Send to API
+                // Send to API with API KEY HEADER
                 const response = await fetch(apiUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        'X-API-Key': apiKey 
                     },
                     body: JSON.stringify(requestBody)
                 });
                 
                 if (!response.ok) {
                     const errorData = await response.json();
+                    if (response.status === 401) {
+                        throw new Error('Authentication failed: Invalid API Key. Please check your API key.');
+                    }
+                    
                     throw new Error(errorData.error || `HTTP ${response.status}`);
                 }
                 
                 const data = await response.json();
-                // Check for fallback/error responses (Updated with guardrails )
-if (data.response && data.response.includes("I'm having trouble answering that")) {
-    addMessageToChat('model', data.response, '⚠️ Fallback response - system had trouble processing your request');
-    conversationHistory.push({role: 'model', content: data.response});
-    return; // Exit early, don't try to parse components
-}
+                
+                // Check for fallback/error responses
+                if (data.response && data.response.includes("I'm having trouble answering that")) {
+                    addMessageToChat('model', data.response, '⚠️ Fallback response - system had trouble processing your request');
+                    conversationHistory.push({role: 'model', content: data.response});
+                    return; // Exit early, don't try to parse components
+                }
 
-// Check for empty or null responses
-if (!data.response || data.response.trim() === '') {
-    const fallbackMsg = "I'm having trouble answering that. Try rewording your question or asking about a specific stitch or Design Crochet Code.";
-    addMessageToChat('model', fallbackMsg, '⚠️ Empty response received from server');
-    conversationHistory.push({role: 'model', content: fallbackMsg});
-    return;
-}
+                // Check for empty or null responses
+                if (!data.response || data.response.trim() === '') {
+                    const fallbackMsg = "I'm having trouble answering that. Try rewording your question or asking about a specific stitch or Design Crochet Code.";
+                    addMessageToChat('model', fallbackMsg, '⚠️ Empty response received from server');
+                    conversationHistory.push({role: 'model', content: fallbackMsg});
+                    return;
+                }
+                
                 console.log('Response received:', data);
-
-                
-                
                 
                 const metadata = data.metadata ? [
                     `Conversation length: ${data.metadata.conversation_length ?? 'N/A'}`,
+                    `Response type: ${data.metadata.response_type ?? 'N/A'}`,
                     `Project context: ${data.metadata.project_context_included ? 'Yes' : 'No'}`,
                     `Temperature: ${data.metadata.temperature ?? 'N/A'}`,
                     `Response time: ${new Date().toLocaleTimeString()}`
@@ -353,6 +388,14 @@ if (!data.response || data.response.trim() === '') {
             } catch (error) {
                 console.error('Error:', error);
                 showError(error.message);
+                
+                // If it's an auth error, highlight the API key field
+                if (error.message.includes('Authentication failed')) {
+                    document.getElementById('apiKey').style.borderColor = 'red';
+                    setTimeout(() => {
+                        document.getElementById('apiKey').style.borderColor = '';
+                    }, 3000);
+                }
             } finally {
                 // Re-enable input
                 messageInput.disabled = false;
@@ -367,7 +410,7 @@ if (!data.response || data.response.trim() === '') {
             chatArea.innerHTML = `
                 <div class="message ai-message">
                     <strong>🤖 Crochet AI:</strong> Chat cleared! Ready for a new conversation.
-                    <div class="metadata">Note: Server-side conversation history is preserved</div>
+                    <div class="metadata">Note: Server-side conversation history is preserved • Security: API Key authentication enabled</div>
                 </div>
             `;
             conversationHistory = [];
@@ -377,9 +420,15 @@ if (!data.response || data.response.trim() === '') {
             const userId = document.getElementById('userId').value.trim();
             const projectId = document.getElementById('projectId').value.trim();
             const apiUrl = document.getElementById('apiUrl').value.trim();
+            const apiKey = document.getElementById('apiKey').value.trim();
             
             if (!userId || !projectId) {
                 alert('Please enter both User ID and Project ID');
+                return;
+            }
+            
+            if (!apiKey) {
+                alert('Please enter a valid API Key');
                 return;
             }
             
@@ -387,7 +436,16 @@ if (!data.response || data.response.trim() === '') {
                 const debugUrl = `${apiUrl}?debug=conversation&project_id=${projectId}&user_id=${userId}`;
                 console.log('Debug URL:', debugUrl);
                 
-                const response = await fetch(debugUrl);
+                const response = await fetch(debugUrl, {
+                    headers: {
+                        'X-API-Key': apiKey  // ← ADD API KEY TO DEBUG REQUESTS TOO
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Debug request failed: HTTP ${response.status}`);
+                }
+                
                 const data = await response.json();
                 
                 console.log('Debug response:', data);
@@ -410,8 +468,6 @@ if (!data.response || data.response.trim() === '') {
                 showError(`Debug failed: ${error.message}`);
             }
         }
-        
-        // Focus on input when page loads
         window.onload = function() {
             document.getElementById('messageInput').focus();
         };
