@@ -134,9 +134,9 @@
         <p>Test persistent chat with conversation history and project context.</p>
         
         <div class="security-notice">
-            <h3>🔒 Security Enabled</h3>
+            <h3>Security Enabled</h3>
             <p><strong>API is now protected with authentication.</strong> This demo includes the required API key automatically.</p>
-            <p><strong>API Key:</strong> <code>491db51f-9798-4fde-88c2-78732d7cd587</code></p>
+            <p><em>API key is hidden for security purposes.</em></p>
         </div>
         
         <div class="config-section">
@@ -165,7 +165,8 @@
             </div>
             <div style="grid-column: span 2;">
                 <label for="apiKey">API Key:</label>
-                <input type="text" id="apiKey" value="491db51f-9798-4fde-88c2-78732d7cd587" placeholder="Your API Key" style="width: 100%; font-family: monospace;">
+                <input type="password" id="apiKey" value="491db51f-9798-4fde-88c2-78732d7cd587" placeholder="Hidden for security" style="width: 100%; font-family: monospace;">
+                <small style="color: #666;">API key is hidden for security. Demo uses pre-configured key.</small>
             </div>
         </div>
         
@@ -274,8 +275,10 @@
             const projectId = document.getElementById('projectId').value.trim();
             const responseType = document.getElementById('responseType').value;
             const apiUrl = document.getElementById('apiUrl').value.trim();
-            const apiKey = document.getElementById('apiKey').value.trim();  // ← GET API KEY
             const temperature = parseFloat(document.getElementById('temperature').value);
+            
+            // Use hardcoded API key (hidden from UI)
+            const apiKey = "491db51f-9798-4fde-88c2-78732d7cd587";
             
             const message = messageInput.value.trim();
             
@@ -292,11 +295,6 @@
             
             if (!apiUrl || !apiUrl.startsWith('http')) {
                 alert('Please enter a valid API URL');
-                return;
-            }
-            
-            if (!apiKey) {
-                alert('Please enter a valid API Key');
                 return;
             }
             
@@ -326,20 +324,21 @@
                 };
                 
                 console.log('Sending request:', requestBody);
-                console.log('Using API Key:', apiKey);
                 
-                // Send to API with API KEY HEADER
+                // Send to API with HIDDEN API KEY
                 const response = await fetch(apiUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-API-Key': apiKey 
+                        'X-API-Key': apiKey  // ← CRITICAL: Add API key header
                     },
                     body: JSON.stringify(requestBody)
                 });
                 
                 if (!response.ok) {
                     const errorData = await response.json();
+                    
+                    // Handle authentication errors specifically
                     if (response.status === 401) {
                         throw new Error('Authentication failed: Invalid API Key. Please check your API key.');
                     }
@@ -420,15 +419,12 @@
             const userId = document.getElementById('userId').value.trim();
             const projectId = document.getElementById('projectId').value.trim();
             const apiUrl = document.getElementById('apiUrl').value.trim();
-            const apiKey = document.getElementById('apiKey').value.trim();
+            
+            // Use hardcoded API key (hidden from users)
+            const apiKey = "491db51f-9798-4fde-88c2-78732d7cd587";
             
             if (!userId || !projectId) {
                 alert('Please enter both User ID and Project ID');
-                return;
-            }
-            
-            if (!apiKey) {
-                alert('Please enter a valid API Key');
                 return;
             }
             
@@ -468,6 +464,8 @@
                 showError(`Debug failed: ${error.message}`);
             }
         }
+        
+        // Focus on input when page loads
         window.onload = function() {
             document.getElementById('messageInput').focus();
         };
