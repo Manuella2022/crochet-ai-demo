@@ -150,9 +150,13 @@
                 <label for="temperature">Temperature:</label>
                 <input type="number" id="temperature" value="0.2" min="0" max="1" step="0.1">
             </div>
-            <div>
+            <div style="grid-column: span 2;">
                 <label for="apiUrl">API URL:</label>
-                <input type="text" id="apiUrl" value="https://vertex-ai-request-nmyzhgdplq-uc.a.run.app" placeholder="Your Firebase Function URL" style="grid-column: span 2;">
+                <input type="text" id="apiUrl" value="https://vertex-ai-request-nmyzhgdplq-uc.a.run.app" placeholder="Your Firebase Function URL" style="width: 100%;">
+            </div>
+            <div style="grid-column: span 2;">
+                <label for="apiKey">API Key:</label>
+                <input type="text" id="apiKey" value="491db51f-9798-4fde-88c2-78732d7cd587" placeholder="Your API Key" style="width: 100%; font-family: monospace;">
             </div>
         </div>
         
@@ -271,6 +275,7 @@
             const projectId = document.getElementById('projectId').value.trim();
             const responseType = document.getElementById('responseType').value;
             const apiUrl = document.getElementById('apiUrl').value.trim();
+            const apiKey = document.getElementById('apiKey').value.trim();
             const temperature = parseFloat(document.getElementById('temperature').value);
             
             const message = messageInput.value.trim();
@@ -287,6 +292,11 @@
             
             if (!apiUrl || !apiUrl.startsWith('http')) {
                 alert('Please enter a valid API URL');
+                return;
+            }
+            
+            if (!apiKey) {
+                alert('Please enter a valid API Key');
                 return;
             }
             
@@ -317,26 +327,30 @@
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        'X-API-Key': apiKey
                     },
                     body: JSON.stringify(requestBody)
                 });
                 
                 if (!response.ok) {
                     const errorData = await response.json();
+                    if (response.status === 401) {
+                        throw new Error('Authentication failed: Invalid API Key');
+                    }
                     throw new Error(errorData.error || `HTTP ${response.status}`);
                 }
                 
                 const data = await response.json();
                 
                 if (data.response && data.response.includes("I'm having trouble answering that")) {
-                    addMessageToChat('model', data.response, '⚠️ Fallback response - system had trouble processing your request');
+                    addMessageToChat('model', data.response, '⚠️ Fallback response');
                     conversationHistory.push({role: 'model', content: data.response});
                     return;
                 }
 
                 if (!data.response || data.response.trim() === '') {
-                    const fallbackMsg = "I'm having trouble answering that. Try rewording your question or asking about a specific stitch or Design Crochet Code.";
-                    addMessageToChat('model', fallbackMsg, '⚠️ Empty response received from server');
+                    const fallbackMsg = "I'm having trouble answering that. Try rewording your question.";
+                    addMessageToChat('model', fallbackMsg, '⚠️ Empty response');
                     conversationHistory.push({role: 'model', content: fallbackMsg});
                     return;
                 }
@@ -344,13 +358,12 @@
                 console.log('Response received:', data);
                 
                 const metadata = data.metadata ? [
-                    `Conversation length: ${data.metadata.conversation_length ?? 'N/A'}`,
-                    `Project context: ${data.metadata.project_context_included ? 'Yes' : 'No'}`,
-                    `Temperature: ${data.metadata.temperature ?? 'N/A'}`,
-                    `Response time: ${new Date().toLocaleTimeString()}`
-                ].join(' | ') : `Response time: ${new Date().toLocaleTimeString()}`;
+                    `Conversation: ${data.metadata.conversation_length ?? 'N/A'}`,
+                    `Context: ${data.metadata.project_context_included ? 'Yes' : 'No'}`,
+                    `Temp: ${data.metadata.temperature ?? 'N/A'}`,
+                    `Time: ${new Date().toLocaleTimeString()}`
+                ].join(' | ') : `Time: ${new Date().toLocaleTimeString()}`;
                 
-                // For pattern_metadata, try to parse and format JSON
                 if (responseType === 'pattern_metadata') {
                     const jsonData = tryParseJSON(data.response);
                     if (jsonData) {
@@ -365,7 +378,7 @@
                         `;
                         addMessageToChat('model', displayHTML, metadata);
                     } else {
-                        addMessageToChat('model', data.response, metadata + ' | ⚠️ Response is not valid JSON');
+                        addMessageToChat('model', data.response, metadata + ' | ⚠️ Not valid JSON');
                     }
                 } else {
                     addMessageToChat('model', data.response ?? '[No response]', metadata);
@@ -373,16 +386,15 @@
                 
                 conversationHistory.push({role: 'model', content: data.response ?? '[No response]'});
                 
-                if (data.crochet_components && typeof data.crochet_components === 'object' && Object.keys(data.crochet_components).length > 0) {
-                    const componentsText = Object.entries(data.crochet_components)
-                        .map(([key, value]) => `${key}: ${value}`)
-                        .join('<br>');
-                    addMessageToChat('model', `<strong>Parsed Components:</strong><br>${componentsText}`, 'Structured response components');
-                }
-                
             } catch (error) {
                 console.error('Error:', error);
                 showError(error.message);
+                if (error.message.includes('Authentication failed')) {
+                    document.getElementById('apiKey').style.borderColor = 'red';
+                    setTimeout(() => {
+                        document.getElementById('apiKey').style.borderColor = '';
+                    }, 3000);
+                }
             } finally {
                 messageInput.disabled = false;
                 sendButton.disabled = false;
@@ -395,8 +407,8 @@
             const chatArea = document.getElementById('chatArea');
             chatArea.innerHTML = `
                 <div class="message ai-message">
-                    <strong>🤖 Crochet AI:</strong> Chat cleared! Ready for a new conversation.
-                    <div class="metadata">Note: Server-side conversation history is preserved</div>
+                    <strong>Crochet AI:</strong> Chat cleared! Ready for a new conversation.
+                    <div class="metadata">Server-side history preserved</div>
                 </div>
             `;
             conversationHistory = [];
@@ -406,9 +418,15 @@
             const userId = document.getElementById('userId').value.trim();
             const projectId = document.getElementById('projectId').value.trim();
             const apiUrl = document.getElementById('apiUrl').value.trim();
+            const apiKey = document.getElementById('apiKey').value.trim();
             
             if (!userId || !projectId) {
                 alert('Please enter both User ID and Project ID');
+                return;
+            }
+            
+            if (!apiKey) {
+                alert('Please enter API Key');
                 return;
             }
             
@@ -416,23 +434,30 @@
                 const debugUrl = `${apiUrl}?debug=conversation&project_id=${projectId}&user_id=${userId}`;
                 console.log('Debug URL:', debugUrl);
                 
-                const response = await fetch(debugUrl);
-                const data = await response.json();
+                const response = await fetch(debugUrl, {
+                    headers: {
+                        'X-API-Key': apiKey
+                    }
+                });
                 
+                if (!response.ok) {
+                    throw new Error(`Debug failed: HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
                 console.log('Debug response:', data);
                 
                 const debugInfo = `
-                    📊 <strong>Conversation Debug Info:</strong><br>
-                    Project ID: ${data.project_id}<br>
-                    User ID: ${data.user_id}<br>
-                    Conversation Length: ${data.conversation_length}<br>
-                    Recent Messages: ${data.messages ? data.messages.length : 0}<br>
+                    <strong>Debug Info:</strong><br>
+                    Project: ${data.project_id}<br>
+                    User: ${data.user_id}<br>
+                    Messages: ${data.conversation_length}<br>
                     <br>
-                    <strong>Recent Messages:</strong><br>
+                    <strong>Recent:</strong><br>
                     ${data.messages ? data.messages.map(m => `${m.role}: ${m.content.substring(0, 50)}...`).join('<br>') : 'None'}
                 `;
                 
-                addMessageToChat('system', debugInfo, 'Debug information from server');
+                addMessageToChat('system', debugInfo, 'Debug data');
                 
             } catch (error) {
                 console.error('Debug error:', error);
