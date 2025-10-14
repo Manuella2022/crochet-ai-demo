@@ -144,6 +144,7 @@
                     <option value="code">Code (Instructions → Design Crochet)</option>
                     <option value="written">Written (Code → Instructions)</option>
                     <option value="pattern_metadata">Pattern Metadata (Code → JSON)</option>
+                    <option value="code_array">Code Array (Full Pattern → JSON Array)</option>
                 </select>
             </div>
             <div>
@@ -407,7 +408,7 @@
             const chatArea = document.getElementById('chatArea');
             chatArea.innerHTML = `
                 <div class="message ai-message">
-                    <strong>Crochet AI:</strong> Chat cleared! Ready for a new conversation.
+                    <strong>🤖 Crochet AI:</strong> Chat cleared! Ready for a new conversation.
                     <div class="metadata">Server-side history preserved</div>
                 </div>
             `;
@@ -448,7 +449,7 @@
                 console.log('Debug response:', data);
                 
                 const debugInfo = `
-                    <strong>Debug Info:</strong><br>
+                    📊 <strong>Debug Info:</strong><br>
                     Project: ${data.project_id}<br>
                     User: ${data.user_id}<br>
                     Messages: ${data.conversation_length}<br>
